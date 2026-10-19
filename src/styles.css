@@ -1607,6 +1607,7 @@ h1 {
     flex-direction: row;
     align-items: center;
     gap: 20px;
+    flex-wrap: wrap;
     border-right: 0;
     border-bottom: 1px solid #3e3226;
   }
@@ -1614,9 +1615,20 @@ h1 {
     font-size: 12px;
   }
   .sidebar-label,
-  .sidebar-note,
-  .sidebar nav {
+  .sidebar-note {
     display: none;
+  }
+  .sidebar nav {
+    display: flex;
+    order: 1;
+    width: 100%;
+    gap: 12px;
+    margin: 0;
+  }
+  .sidebar .nav-item {
+    flex: 1;
+    font-size: 12px;
+    padding: 10px;
   }
   .account {
     margin-left: auto;
@@ -2204,3 +2216,26 @@ h1 {
     grid-template-columns: 1fr;
   }
 }
+.connection-setup, .connection-card {
+  padding: 24px;
+  margin-bottom: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.connection-setup { max-width: 780px; }
+.connection-setup p, .connections-list > p { margin: 12px 0; }
+.connection-setup details { margin-top: 20px; }
+.connection-setup summary { cursor: pointer; }
+.connection-setup pre { overflow-x: auto; padding: 16px 0; font-size: 13px; }
+.connection-card-heading, .connection-card h3, .connection-token-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.connection-card-heading { justify-content: space-between; }
+.connection-card ul { margin: 12px 0; padding-left: 20px; }
+.connection-card p { margin: 8px 0; }
+.connection-permissions { padding: 16px; margin: 16px 0; border: 1px solid var(--line); }
+.connection-permissions label { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.connection-permissions input { width: auto; }

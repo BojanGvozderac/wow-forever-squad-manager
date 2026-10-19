@@ -46,14 +46,18 @@ export function assertMutationOrigin(): void {
   if (url.origin !== expected.origin)
     throw new Error("Request origin does not match");
 }
-export async function sessionUser(): Promise<User | null> {
+export async function sessionTokenHash(): Promise<string | null> {
   const token = getCookie(cookieName());
-  if (!token) return null;
+  return token ? sha256(token) : null;
+}
+export async function sessionUser(): Promise<User | null> {
+  const tokenHash = await sessionTokenHash();
+  if (!tokenHash) return null;
   return db()
     .prepare(
       `SELECT u.id,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.disabled=0`,
     )
-    .bind(await sha256(token), Math.floor(Date.now() / 1000))
+    .bind(tokenHash, Math.floor(Date.now() / 1000))
     .first<User>();
 }
 export async function requireUser(admin = false): Promise<User> {

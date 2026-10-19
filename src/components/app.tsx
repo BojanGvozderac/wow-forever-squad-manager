@@ -23,6 +23,7 @@ import {
   Users,
   X,
   RefreshCw,
+  KeyRound,
 } from "lucide-react";
 import { getSession, logout, type User } from "../server/api";
 import { Button } from "./ui/warcraftcn/button";
@@ -111,6 +112,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               activeProps={{ className: "nav-item active" }}
             >
               <Users size={18} /> Squads <ChevronRight size={15} />
+            </Link>
+            <Link to="/settings/connections" className="nav-item" activeProps={{ className: "nav-item active" }}>
+              <KeyRound size={18} /> AI connections <ChevronRight size={15} />
             </Link>
           </nav>
           <div className="account">

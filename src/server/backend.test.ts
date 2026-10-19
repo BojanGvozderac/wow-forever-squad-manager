@@ -99,6 +99,7 @@ beforeAll(async () => {
     expect((await state.db.prepare(`SELECT * FROM ${table}`).all()).results).toEqual(before[index].results);
   }
   expect((await state.db.prepare("PRAGMA foreign_key_check").all()).results).toEqual([]);
+  for (const sql of readFileSync("migrations/0008_mcp_writes.sql", "utf8").split(";").filter(sql => sql.trim())) await state.db.prepare(sql).run();
 });
 afterAll(async () => {
   await mf?.dispose();
@@ -110,6 +111,8 @@ beforeEach(async () => {
   state.headers.set("cf-connecting-ip", "192.0.2.1");
   state.requestUrl = "https://team.example/";
   for (const table of [
+    "mcp_idempotency",
+    "mcp_audit",
     "availability_entries",
     "wishlist_entries",
     "squad_characters",
@@ -396,6 +399,10 @@ describe("squad calendar", () => {
     }
     const entry = await call(calendar.createAvailability, { squadId, ...slot, characterId });
     expect(entry).toMatchObject({ characterId, characterName: "Calendar Hero" });
+    const partialEntry = await call(calendar.createAvailability, { squadId, ...slot, characterId });
+    const partial = await calendar.updateAvailabilityForUser({id:"player1",username:"player1",role:"player"},{id:partialEntry.id,version:1,note:"Only note"});
+    expect(partial).toMatchObject({characterId,characterName:"Calendar Hero",note:"Only note",version:2});
+    await call(calendar.deleteAvailability,{id:partial.id,version:2});
     await expect(call(calendar.updateAvailability, { ...slot, id: entry.id, version: 1, characterId: foreign.id })).rejects.toThrow();
     const changed = await call(calendar.updateAvailability, { ...slot, id: entry.id, version: 1, characterId: alt.id });
     expect(changed).toMatchObject({ characterId: alt.id, characterName: "Calendar Alt", version: 2 });
@@ -541,4 +548,85 @@ it("creates squads in every region and isolates character identities by region",
   await expect(call(api.createSquad, { name: "Invalid", region: "invalid", ruleset: "normal" })).rejects.toThrow();
   await signIn("player1");
   await expect(call(api.createSquad, { name: "Denied", region: "us", ruleset: "normal" })).rejects.toThrow("Administrator");
+});
+
+describe("shared wishlist operations", () => {
+  const player = { id: "player1", username: "player1", role: "player" as const };
+  const context = { tokenId: "test-token", requestId: "request-1", toolName: "add_wishlist_entry", idempotencyKey: "wishlist-create-1" };
+  async function setup() {
+    await signIn("admin");
+    const squad = await call(api.createSquad,{name:"Wishlist",ruleset:"normal"});
+    const character = await call(api.addPlaceholder,{squadId:squad.id,name:"Hero"});
+    await call(api.assignOwner,{characterId:character.id,ownerId:player.id});
+    return {characterId:character.id,category:"item" as const,priority:"normal" as const,status:"wanted" as const,title:"Sword"};
+  }
+  it("preserves partial fields and rejects stale browser and MCP changes", async () => {
+    const domain = await import("./domain");
+    const input = await setup();
+    const entry = await domain.saveWishlistForUser(player,{...input,notes:"Keep these notes",sourceUrl:"https://example.com/item"});
+    expect(entry.version).toBe(1);
+    const results = await Promise.allSettled([
+      domain.updateWishlistForUser(player,{characterId:input.characterId,id:entry.id,version:1,status:"acquired"}),
+      domain.updateWishlistForUser(player,{characterId:input.characterId,id:entry.id,version:1,priority:"high"}),
+    ]);
+    expect(results.filter(result => result.status === "fulfilled")).toHaveLength(1);
+    const updated = (await domain.listWishlistForUser(player,{characterId:input.characterId}))[0];
+    expect(updated).toMatchObject({title:"Sword",notes:"Keep these notes",sourceUrl:"https://example.com/item",version:2});
+    await signIn(player.id);
+    await expect(call(api.saveWishlistEntry,{...input,id:entry.id,version:1})).rejects.toThrow("changed");
+    await expect(call(api.deleteWishlistEntry,{characterId:input.characterId,id:entry.id,version:1})).rejects.toThrow("changed");
+    await expect(call(api.saveWishlistEntry,{...input,id:entry.id})).rejects.toThrow("version");
+  });
+  it("audits one atomic create and replays identical keys without duplicating entries", async () => {
+    const domain = await import("./domain");
+    const input = await setup();
+    const entries = await Promise.all([
+      domain.saveWishlistForUser(player,input,context),
+      domain.saveWishlistForUser(player,input,{...context,requestId:"request-2"}),
+    ]);
+    expect(entries[0]).toEqual(entries[1]);
+    expect((await state.db.prepare("SELECT id FROM wishlist_entries").all()).results).toHaveLength(1);
+    expect((await state.db.prepare("SELECT * FROM mcp_audit").all()).results).toHaveLength(1);
+    await expect(domain.saveWishlistForUser(player,{...input,title:"Different"},context)).rejects.toThrow("different payload");
+    await state.db.prepare("UPDATE characters SET owner_id='player2' WHERE id=?").bind(input.characterId).run();
+    await expect(domain.saveWishlistForUser(player,input,context)).rejects.toThrow("Only the character owner");
+  });
+  it("rolls a mutation back if the audit insert fails and rejects disabled users", async () => {
+    const domain = await import("./domain");
+    const input = await setup();
+    await state.db.prepare("CREATE TRIGGER reject_test_audit BEFORE INSERT ON mcp_audit BEGIN SELECT RAISE(ABORT,'audit unavailable'); END").run();
+    try {
+      await expect(domain.saveWishlistForUser(player,input,context)).rejects.toThrow("audit unavailable");
+      expect((await state.db.prepare("SELECT id FROM wishlist_entries").all()).results).toHaveLength(0);
+      expect((await state.db.prepare("SELECT * FROM mcp_idempotency").all()).results).toHaveLength(0);
+    } finally {
+      await state.db.prepare("DROP TRIGGER reject_test_audit").run();
+    }
+    await state.db.prepare("UPDATE users SET disabled=1 WHERE id=?").bind(player.id).run();
+    await expect(domain.saveWishlistForUser(player,input)).rejects.toThrow("sign in");
+    await expect(domain.listCharactersForUser(player)).rejects.toThrow("sign in");
+  });
+});
+
+it("replays calendar creates, rechecks squad permissions, and audits only successful writes", async () => {
+  const player = {id:"player1",username:"player1",role:"player" as const};
+  await signIn("admin");
+  const squad = await call(api.createSquad,{name:"MCP calendar",ruleset:"normal"});
+  const character = await call(api.addPlaceholder,{squadId:squad.id,name:"MCP hero"});
+  await call(api.assignOwner,{characterId:character.id,ownerId:player.id});
+  const input = {squadId:squad.id,characterId:character.id,startsAt:1000,endsAt:2000,activities:[{category:"raid" as const,name:"Raid"}],note:"Available"};
+  const context = {tokenId:"test-token",requestId:"calendar-1",toolName:"create_availability",idempotencyKey:"calendar-create"};
+  const entry = await calendar.createAvailabilityForUser(player,input,context);
+  expect(await calendar.createAvailabilityForUser(player,input,context)).toEqual(entry);
+  expect((await state.db.prepare("SELECT id FROM mcp_audit").all()).results).toHaveLength(1);
+  const denied = {id:"player2",username:"player2",role:"player" as const};
+  await expect(calendar.updateAvailabilityForUser(denied,{id:entry.id,version:1,note:"Denied"},{...context,toolName:"update_availability"})).rejects.toThrow("author");
+  await expect(calendar.createAvailabilityForUser(denied,input,{...context,idempotencyKey:"denied"})).rejects.toThrow("own a character");
+  expect((await state.db.prepare("SELECT id FROM mcp_audit").all()).results).toHaveLength(1);
+  expect((await state.db.prepare("SELECT * FROM mcp_idempotency").all()).results).toHaveLength(1);
+  await call(api.removeCharacterFromSquad,{squadId:squad.id,characterId:character.id});
+  await expect(calendar.createAvailabilityForUser(player,input,context)).rejects.toThrow("own a character");
+  // Authors retain editing rights when squad membership ends.
+  expect(await calendar.updateAvailabilityForUser(player,{id:entry.id,version:1,characterId:null,note:"Changed"},{...context,toolName:"update_availability"})).toMatchObject({version:2,note:"Changed"});
+  expect((await state.db.prepare("SELECT id FROM mcp_audit").all()).results).toHaveLength(2);
 });

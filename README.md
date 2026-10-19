@@ -58,6 +58,42 @@ These credentials are high-entropy random keys, not human-chosen passwords. Do n
 
 Local data lives in `.wrangler/state/` and is ignored by Git. Production uses a separate D1 database. No Battle.net credentials are currently required because the unverified integration is disabled.
 
+## Personal MCP connections
+
+The app serves a stateless Streamable HTTP MCP endpoint at `/mcp`. Sign in and open **AI connections** to create a named personal token. Copy the token from its one-time dialog, then configure your MCP client with the server URL and bearer token. Token secrets are stored only as hashes and cannot be recovered from the token list.
+
+Read access is selected by default. Optional permissions allow editing your characters’ wishlists and managing your availability. Tokens do not grant administrator powers or bypass ownership. Each token expires after 1–365 days and can be revoked separately. Disabling an account or rotating its login key revokes its MCP tokens; website logout leaves connections active. Last-use timestamps are updated at most every five minutes.
+
+Apply migrations `0007_mcp_tokens.sql` and `0008_mcp_writes.sql` before running the updated app (`pnpm db:migrate` locally, `pnpm db:migrate:remote` for an existing deployment). The latter adds wishlist versions, mutation audit records, and create-request deduplication. Back up production data before your normal migration/deployment procedure.
+
+### Codex CLI configuration
+
+Add the following to your Codex `config.toml`, replacing the example URL with your deployed app URL:
+
+```toml
+[mcp_servers.war_room]
+url = "https://your-app.example/mcp"
+bearer_token_env_var = "WAR_ROOM_MCP_TOKEN"
+```
+
+Set `WAR_ROOM_MCP_TOKEN` in the environment that launches Codex, then restart the client. Keep the token out of chats, repository files, and URLs. Local development can use `http://127.0.0.1:3000/mcp`; deployed connections should use HTTPS. This is a configured bearer-token connection, not an OAuth sign-in flow. See the [official Codex MCP configuration documentation](https://developers.openai.com/codex/mcp).
+
+### Available tools
+
+| Tools | Required token scope |
+| --- | --- |
+| `get_my_context`, `find_characters`, `list_squads`, `get_squad`, `get_character`, `list_wishlist`, `get_squad_calendar`, `get_capabilities` | `read` |
+| `add_wishlist_entry`, `update_wishlist_entry`, `delete_wishlist_entry` | `wishlist:write` |
+| `create_availability`, `update_availability`, `delete_availability` | `availability:write` |
+
+Character discovery returns candidates with stable IDs, region, ruleset, ownership, and verification status. Resolve ambiguous names before writing; mutations take IDs rather than character names. Availability timestamps must include `Z` or an explicit UTC offset. Reads are limited to 42 days; a slot lasts at most 48 hours.
+
+Updates and deletes require the latest record `version`; partial updates preserve omitted fields. Creates require an `idempotencyKey`: keep the same key and payload when retrying a request, and use a fresh key for a new operation. Reusing a key with a different payload fails. Successful MCP mutations record the user, token ID, operation, target, and timestamp without logging token secrets. Deduplication records retain the create payload and result in D1; audit/deduplication retention is not automatically pruned in this release.
+
+No administrative mutations, account creation, or live game-provider integration are exposed. Game capabilities report the actual configured provider state; manual wishlist and availability operations work without Blizzard connectivity.
+
+`pnpm test` covers token lifecycle, authorization, conflicts, retries, and SDK protocol requests. `pnpm test:e2e` additionally creates a token in the browser, connects the official MCP SDK client to the local Worker, updates an owned wishlist, verifies the website result, and revokes access. It uses only the disposable test database. Production hosting, client-specific setup, and Worker usage still require deployment validation.
+
 ## Blizzard OAuth preparation
 
 Optional Blizzard credentials belong in the ignored `.env.local` file, using `BLIZZARD_API_CLIENT_ID` and `BLIZZARD_API_CLIENT_SECRET` (see `.env.example`). Run `pnpm blizzard:check` to verify the client-credentials exchange. It prints only the result and token lifetime; tokens are never saved. This does not enable Forever data fetching or Battle.net login for users.

@@ -35,6 +35,11 @@ export default async function setup() {
     );
   }
   const directory = mkdtempSync(join(tmpdir(), "war-room-e2e-"));
+  statements.push(
+    "INSERT INTO squads(id,name,region,ruleset) VALUES ('mcp-squad','MCP test squad','eu','normal');",
+    "INSERT INTO characters(id,name,normalized_name,region,ruleset,owner_id) VALUES ('mcp-main','MCP Hero','mcp hero','eu','normal','player1'),('mcp-alt','MCP Alt','mcp alt','eu','normal','player1'),('mcp-other','MCP Other','mcp other','eu','normal','player2');",
+    "INSERT INTO squad_characters(squad_id,character_id) VALUES ('mcp-squad','mcp-main'),('mcp-squad','mcp-alt'),('mcp-squad','mcp-other');",
+  );
   try {
     const file = join(directory, "seed.sql");
     writeFileSync(file, statements.join("\n"), { mode: 0o600 });

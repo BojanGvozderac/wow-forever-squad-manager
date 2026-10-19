@@ -349,7 +349,7 @@ function CharacterPage() {
                         )
                           void action(() =>
                             deleteWishlistEntry({
-                              data: { characterId, id: w.id },
+                              data: { characterId, id: w.id, version: w.version },
                             }),
                           );
                       }}
@@ -401,6 +401,7 @@ function CharacterPage() {
               const values = {
                 characterId,
                 id: entry?.id,
+                version: entry?.version,
                 title: String(f.get("title")),
                 category: String(
                   f.get("category"),

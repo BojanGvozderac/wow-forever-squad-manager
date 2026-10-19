@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as CharactersCharacterIdRouteImport } from './routes/characters.$characterId'
+import { Route as SettingsConnectionsRouteImport } from './routes/settings.connections'
 import { Route as SquadsSquadIdRouteImport } from './routes/squads.$squadId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +30,11 @@ const CharactersCharacterIdRoute = CharactersCharacterIdRouteImport.update({
   path: '/characters/$characterId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsConnectionsRoute = SettingsConnectionsRouteImport.update({
+  id: '/settings/connections',
+  path: '/settings/connections',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SquadsSquadIdRoute = SquadsSquadIdRouteImport.update({
   id: '/squads/$squadId',
   path: '/squads/$squadId',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/characters/$characterId': typeof CharactersCharacterIdRoute
+  '/settings/connections': typeof SettingsConnectionsRoute
   '/squads/$squadId': typeof SquadsSquadIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/characters/$characterId': typeof CharactersCharacterIdRoute
+  '/settings/connections': typeof SettingsConnectionsRoute
   '/squads/$squadId': typeof SquadsSquadIdRoute
 }
 export interface FileRoutesById {
@@ -52,18 +60,30 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/characters/$characterId': typeof CharactersCharacterIdRoute
+  '/settings/connections': typeof SettingsConnectionsRoute
   '/squads/$squadId': typeof SquadsSquadIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/characters/$characterId' | '/squads/$squadId'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/characters/$characterId'
+    | '/settings/connections'
+    | '/squads/$squadId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/characters/$characterId' | '/squads/$squadId'
+  to:
+    | '/'
+    | '/login'
+    | '/characters/$characterId'
+    | '/settings/connections'
+    | '/squads/$squadId'
   id:
     | '__root__'
     | '/'
     | '/login'
     | '/characters/$characterId'
+    | '/settings/connections'
     | '/squads/$squadId'
   fileRoutesById: FileRoutesById
 }
@@ -71,6 +91,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   CharactersCharacterIdRoute: typeof CharactersCharacterIdRoute
+  SettingsConnectionsRoute: typeof SettingsConnectionsRoute
   SquadsSquadIdRoute: typeof SquadsSquadIdRoute
 }
 
@@ -97,6 +118,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CharactersCharacterIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/connections': {
+      id: '/settings/connections'
+      path: '/settings/connections'
+      fullPath: '/settings/connections'
+      preLoaderRoute: typeof SettingsConnectionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/squads/$squadId': {
       id: '/squads/$squadId'
       path: '/squads/$squadId'
@@ -111,6 +139,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   CharactersCharacterIdRoute: CharactersCharacterIdRoute,
+  SettingsConnectionsRoute: SettingsConnectionsRoute,
   SquadsSquadIdRoute: SquadsSquadIdRoute,
 }
 export const routeTree = rootRouteImport
