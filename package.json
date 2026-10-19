@@ -16,7 +16,8 @@
     "keys:seed-admin": "node scripts/seed-admin.mjs",
     "keys:seed": "node scripts/access-keys.mjs seed",
     "keys:rotate": "node scripts/access-keys.mjs rotate",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "media:capture": "playwright test --config scripts/capture-ui.config.ts"
   },
   "dependencies": {
     "@tanstack/react-router": "1.170.45",

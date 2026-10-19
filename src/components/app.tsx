@@ -121,8 +121,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               <strong>{session.user.username}</strong>
               <small>
                 {session.user.role === "admin"
-                  ? "Guild administrator"
-                  : "Guild member"}
+                  ? "Squad administrator"
+                  : "Squad member"}
               </small>
             </div>
             <button
@@ -141,11 +141,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="main-wrap">
           <header className="topbar">
             <span>
-              <span className="region-dot" /> PRIVATE GUILD SPACE
+              <span className="region-dot" /> PRIVATE SQUAD SPACE
             </span>
             {session.user.role === "admin" && <CreatePlayer />}
             <span className="topbar-right">
-              <Shield size={14} /> EU RULESETS{" "}
+              <Shield size={14} /> ALL REGIONS{" "}
               <span className="separator">/</span> <span>WoW Forever</span>
             </span>
           </header>

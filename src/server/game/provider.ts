@@ -1,3 +1,4 @@
+import type { Region } from "../../lib/regions";
 export type Ruleset = "normal" | "pvp" | "roleplay";
 export type Category = "item" | "enchant" | "recipe" | "other";
 export type Failure = {
@@ -10,7 +11,7 @@ export type Result<T> =
 export type Identity = {
   provider: string;
   externalId: string;
-  region: "eu";
+  region: Region;
   ruleset: Ruleset;
   fullName: string;
 };
@@ -53,12 +54,12 @@ export type GameCalendarEvent = {
   startsAt: number;
   endsAt: number;
   game: "forever";
-  region: "eu";
+  region: Region;
   sourceUrl: string;
   retrievedAt: number;
 };
 export type CalendarEventsInput = {
-  region: "eu";
+  region: Region;
   ruleset: Ruleset;
   from: number;
   to: number;
@@ -76,7 +77,7 @@ export interface GameProvider {
   readonly version: string;
   getCapabilities(): Capabilities;
   lookupCharacter(
-    input: { region: "eu"; ruleset: Ruleset; fullName: string },
+    input: { region: Region; ruleset: Ruleset; fullName: string },
     signal?: AbortSignal,
   ): Promise<Result<Identity>>;
   fetchCharacter(
@@ -97,7 +98,7 @@ export interface GameProvider {
   ): Promise<Result<GameCalendarEvent[]>>;
 }
 const reason =
-  "No verified public API or licensed dataset for official EU World of Warcraft: Forever is configured. Manual entries are available.";
+  "No verified public API or licensed dataset for official World of Warcraft: Forever is configured. Manual entries are available.";
 const unsupported = (): Failure => ({ status: "unsupported", message: reason });
 export const foreverProvider: GameProvider = {
   id: "blizzard-forever-eu",
@@ -116,7 +117,7 @@ export const foreverProvider: GameProvider = {
   getAcquisitionSources: async () => unsupported(),
   getCalendarEvents: async () => ({
     status: "unsupported",
-    message: "No verified HTTP calendar source for official EU World of Warcraft: Forever is configured.",
+    message: "No verified HTTP calendar source for official World of Warcraft: Forever is configured.",
   }),
 };
 export function getProvider(id = foreverProvider.id): GameProvider | undefined {

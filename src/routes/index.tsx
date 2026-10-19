@@ -1,3 +1,4 @@
+import { regionLabels } from "../lib/regions";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
@@ -114,9 +115,9 @@ function Squads() {
             <Globe2 size={20} />
           </div>
           <div>
-            <span>REGION</span>
+            <span>REGIONS</span>
             <strong className="stat-word">
-              Europe <small>EU</small>
+              {loading ? "—" : new Set(data?.rosters.map(({ squad }) => squad.region)).size}
             </strong>
           </div>
         </div>
@@ -165,7 +166,7 @@ function Squads() {
                 </div>
                 <h3>{squad.name}</h3>
                 <div className="squad-realm">
-                  <Globe2 size={13} /> Europe <span>·</span> Forever
+                  <Globe2 size={13} /> {regionLabels[squad.region]} <span>·</span> Forever
                 </div>
                 <div className="squad-portraits">
                   {characters.slice(0, 4).map((c) => (
@@ -251,7 +252,7 @@ function Squads() {
               >
                 <strong>{c.name}</strong>
                 <small>
-                  {rulesetLabels[c.ruleset]} ·{" "}
+                  {regionLabels[c.region]} · {rulesetLabels[c.ruleset]} ·{" "}
                   {c.verified ? "Verified" : "Unverified"}
                 </small>
               </Link>
@@ -287,7 +288,7 @@ function Squads() {
       {creating && (
         <Modal title="Create squad" onClose={() => setCreating(false)}>
           <p className="modal-intro">
-            Enter a squad name and choose a ruleset.
+            Enter a squad name and choose a region and ruleset.
           </p>
           <form
             onSubmit={async (e) => {
@@ -298,6 +299,7 @@ function Squads() {
                 await createSquad({
                   data: {
                     name: String(f.get("name")),
+                    region: String(f.get("region")) as Squad["region"],
                     ruleset: String(f.get("ruleset")) as Squad["ruleset"],
                   },
                 });
@@ -320,11 +322,18 @@ function Squads() {
                 autoFocus
               />
             </Field>
-            <Field label="EU ruleset">
+            <Field label="Region">
+              <select name="region" defaultValue="eu">
+                {Object.entries(regionLabels).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Ruleset">
               <select name="ruleset">
-                <option value="normal">Normal · EU</option>
-                <option value="pvp">PvP · EU</option>
-                <option value="roleplay">Roleplay · EU</option>
+                <option value="normal">Normal</option>
+                <option value="pvp">PvP</option>
+                <option value="roleplay">Roleplay</option>
               </select>
             </Field>
             <p className="field-hint">

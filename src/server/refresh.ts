@@ -1,3 +1,4 @@
+import type { Region } from "../lib/regions";
 import {
   getProvider,
   type GameProvider,
@@ -9,7 +10,7 @@ type RefreshRow = {
   id: string;
   provider: string;
   external_id: string;
-  region: "eu";
+  region: Region;
   ruleset: "normal" | "pvp" | "roleplay";
   name: string;
   failure_count: number;

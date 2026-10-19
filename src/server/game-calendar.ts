@@ -1,3 +1,4 @@
+import type { Region } from "../lib/regions";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireUser } from "./auth";
@@ -18,7 +19,7 @@ export const getSquadGameEvents = createServerFn({ method: "GET" })
   .validator(calendarInput)
   .handler(async ({ data }) => {
     await requireUser();
-    const squad = await required<{ region: "eu"; ruleset: Ruleset }>(
+    const squad = await required<{ region: Region; ruleset: Ruleset }>(
       "SELECT region,ruleset FROM squads WHERE id=?",
       data.squadId,
     );

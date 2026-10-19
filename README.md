@@ -1,6 +1,32 @@
 # WoW Forever — The War Room
 
-A private squad roster and upgrade wishlist for official EU Forever, built with pnpm, TanStack Start, React, WarcraftCN, and Cloudflare D1 (SQLite).
+A private squad roster and upgrade wishlist for World of Warcraft: Forever across Europe, Americas & Oceania, Korea, Taiwan, and China, built with pnpm, TanStack Start, React, WarcraftCN, and Cloudflare D1 (SQLite).
+
+## UI preview
+
+Screenshots use fictional demo squads, unverified character placeholders, and custom wishlist goals.
+
+![Squad overview across five regions](docs/media/squads-desktop.png)
+
+![Squad roster](docs/media/roster-desktop.png)
+
+![Weekly squad availability](docs/media/calendar-desktop.png)
+
+![Character upgrade wishlist](docs/media/wishlist-desktop.png)
+
+![Admin squad creation with region selection](docs/media/create-squad.png)
+
+<img src="docs/media/wishlist-mobile.png" alt="Character wishlist on mobile" width="390" />
+
+Full-resolution PNGs are in [docs/media](docs/media) for README use and social posts. Regenerate them with `pnpm exec playwright install chromium` followed by `pnpm media:capture`. The capture command starts a local server on port 3100 and resets only the disposable `.wrangler/e2e` database; do not run it alongside browser tests. Login keys are never included in screenshots.
+
+## Squad regions
+
+Admins choose a **Region** and **Ruleset** when creating a squad. Supported regions are Europe (`eu`), Americas & Oceania (`us`), Korea (`kr`), Taiwan (`tw`), and China (`cn`). Europe is the default.
+
+Squad cards and character pages display their region. Characters can join multiple squads only when both region and ruleset match. Characters with the same name in different regions remain separate records. A squad's region is fixed at creation; its ruleset can change while the squad is empty.
+
+Existing squads and characters remain in Europe. Before deploying this change, run `pnpm db:migrate:remote` to apply `0006_regions.sql` (use `pnpm db:migrate` locally). The migration preserves rosters, ownership, wishlists, refresh data, and calendar entries.
 
 ## Current data availability
 
@@ -43,7 +69,7 @@ The Cloudflare Vite plugin loads `.env.local` into server bindings. Do not add a
 - All accounts view all squads, characters, and wishlists.
 - Admin creates player accounts and creates and edits squads, adds/removes characters, and assigns a single owner.
 - Only the assigned owner can edit a character's wishlist. Admin must also be the owner to edit it.
-- A character may belong to several squads with the same EU ruleset. Ownership and wishlist are shared.
+- A character may belong to several squads with the same region and ruleset. Ownership and wishlist are shared.
 - Removing a membership or deleting a squad preserves the character and wishlist. Unreferenced characters stop refreshing.
 - Rulesets can change only for empty squads. The app stores at most 50 characters, including unreferenced placeholders.
 - Wishlist entries support priority, notes, an HTTPS source link, and wanted/acquired status. Custom goals have no automatically verified acquisition source.
@@ -58,7 +84,7 @@ pnpm exec playwright install chromium
 pnpm test:e2e
 ```
 
-Browser tests use port 3100 and a separate disposable database under `.wrangler/e2e`; they never rotate your normal local keys. They cover admin roster management, owner-only wishlists, read-only members, invalid login, and mobile layout.
+Browser tests use port 3100 and a separate disposable database under `.wrangler/e2e`; they never rotate your normal local keys. They cover region selection during squad creation, admin roster management, owner-only wishlists, read-only members, invalid login, and mobile layout.
 
 The build generates the TanStack route tree; run it before type checking a fresh checkout if the generated route tree is missing. Runtime integration tests launch a local Cloudflare runtime and need permission to bind loopback sockets.
 
@@ -79,7 +105,7 @@ The local tests cannot prove Cloudflare production CPU limits. If the free tier 
 
 ## UI attribution
 
-The WarcraftCN button includes the original library's locally bundled textures and an adapted React implementation. Its license and source attribution are in `src/components/ui/warcraftcn/LICENSE.md`. Other application layouts are custom. This fan application is not affiliated with Blizzard Entertainment.
+The [WarcraftCN](https://www.warcraftcn.com/) button includes the original library's locally bundled textures and an adapted React implementation. See the [upstream source](https://github.com/TheOrcDev/warcraftcn-ui) and the bundled [MIT license](src/components/ui/warcraftcn/LICENSE.md). Other application layouts are custom. This fan application is not affiliated with Blizzard Entertainment.
 
 The administrator username is reserved as `admin`; database triggers and account scripts reject other administrator names. Run migrations on existing databases before using the new account UI. `pnpm keys:seed` remains the optional three-account development seed (`admin`, `player1`, `player2`); use `pnpm keys:seed-admin` for a new installation.
 
@@ -93,4 +119,4 @@ A slot can optionally select one of the author’s characters in that squad. All
 
 A slot can include several named dungeons, raids, or battlegrounds and an optional note, or simply indicate availability. Sessions are limited to 48 hours, 10 activities, and a 2,000-character note. Concurrent edits are detected and require reloading the latest entry. Calendars refresh every minute while visible and on focus; successful changes refresh immediately.
 
-Automatic Forever game events are a separate, capability-gated integration. No verified Forever/EU calendar HTTP source is configured, so the UI reports that automatic events are unavailable. It does not substitute retail or Classic schedules, invent battleground rotations, or require Blizzard connectivity for player availability.
+Automatic Forever game events are a separate, capability-gated integration. No verified Forever calendar HTTP source is configured, so the UI reports that automatic events are unavailable. It does not substitute retail or Classic schedules, invent battleground rotations, or require Blizzard connectivity for player availability.

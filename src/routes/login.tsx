@@ -16,7 +16,7 @@ function Login() {
         </div>
         <h1>WoW Forever</h1>
         <div className="login-art-footer">
-          WOW FOREVER <span>✦</span> EUROPE
+          WOW FOREVER <span>✦</span> WORLDWIDE
         </div>
       </div>
       <div className="login-panel">
@@ -80,7 +80,7 @@ function Login() {
           <div className="login-help">
             <ShieldCheck size={17} />
             <p>
-              This is a private guild space. Ask your administrator for your
+              This is a private squad space. Ask your administrator for your
               username and personal login key.
             </p>
           </div>

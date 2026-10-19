@@ -1,3 +1,4 @@
+import { regionLabels } from "../lib/regions";
 import {
   LookupForm,
   SnapshotSection,
@@ -118,7 +119,7 @@ function CharacterPage() {
           <UserRound size={44} />
         </div>
         <PageHeading
-          eyebrow={`${rulesetLabels[c.ruleset].toUpperCase()} · EUROPE`}
+          eyebrow={`${rulesetLabels[c.ruleset].toUpperCase()} · ${regionLabels[c.region].toUpperCase()}`}
           title={c.name}
         >
           {" "}

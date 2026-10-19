@@ -1,3 +1,4 @@
+import type { Region } from "../../lib/regions";
 import { cached } from "./cache";
 import { providerRequest } from "./request";
 import {
@@ -34,7 +35,7 @@ export function gameData(
             () => call((signal) => provider.getCalendarEvents(input, signal)),
           ),
     lookupCharacter: (input: {
-      region: "eu";
+      region: Region;
       ruleset: Ruleset;
       fullName: string;
     }) =>

@@ -1,3 +1,4 @@
+import { regions, type Region } from "../lib/regions";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
@@ -37,7 +38,7 @@ export type Ruleset = "normal" | "pvp" | "roleplay";
 export type Squad = {
   id: string;
   name: string;
-  region: "eu";
+  region: Region;
   ruleset: Ruleset;
   createdAt: string;
 };
@@ -45,7 +46,7 @@ export type Character = {
   id: string;
   name: string;
   normalizedName: string;
-  region: "eu";
+  region: Region;
   ruleset: Ruleset;
   ownerId: string | null;
   verified: boolean;
@@ -157,13 +158,13 @@ export const listSquads = createServerFn({ method: "GET" }).handler(
   },
 );
 export const createSquad = createServerFn({ method: "POST" })
-  .validator(z.object({ name, ruleset }))
+  .validator(z.object({ name, ruleset, region: z.enum(regions).default("eu") }))
   .handler(async ({ data }) => {
     await adminMutation();
     const squadId = crypto.randomUUID();
     await db()
-      .prepare("INSERT INTO squads(id,name,ruleset) VALUES (?,?,?)")
-      .bind(squadId, data.name, data.ruleset)
+      .prepare("INSERT INTO squads(id,name,region,ruleset) VALUES (?,?,?,?)")
+      .bind(squadId, data.name, data.region, data.ruleset)
       .run();
     return required<Squad>(
       `SELECT ${squadColumns} FROM squads WHERE id=?`,
@@ -228,25 +229,28 @@ export const addPlaceholder = createServerFn({ method: "POST" })
     await db().batch([
       db()
         .prepare(
-          "INSERT INTO characters(id,name,normalized_name,ruleset) SELECT ?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM characters WHERE region='eu' AND ruleset=? AND normalized_name=? AND verified=0)",
+          "INSERT INTO characters(id,name,normalized_name,region,ruleset) SELECT ?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM characters WHERE region=? AND ruleset=? AND normalized_name=? AND verified=0)",
         )
         .bind(
           crypto.randomUUID(),
           data.name,
           normalized,
+          squad.region,
           squad.ruleset,
+          squad.region,
           squad.ruleset,
           normalized,
         ),
       db()
         .prepare(
-          "INSERT OR IGNORE INTO squad_characters(squad_id,character_id) SELECT ?,id FROM characters WHERE region='eu' AND ruleset=? AND normalized_name=? AND verified=0",
+          "INSERT OR IGNORE INTO squad_characters(squad_id,character_id) SELECT ?,id FROM characters WHERE region=? AND ruleset=? AND normalized_name=? AND verified=0",
         )
-        .bind(data.squadId, squad.ruleset, normalized),
+        .bind(data.squadId, squad.region, squad.ruleset, normalized),
     ]);
     return character(
       await required<Record<string, unknown>>(
-        `SELECT ${characterColumns} FROM characters WHERE ruleset=? AND normalized_name=? AND verified=0`,
+        `SELECT ${characterColumns} FROM characters WHERE region=? AND ruleset=? AND normalized_name=? AND verified=0`,
+        squad.region,
         squad.ruleset,
         normalized,
       ),
@@ -452,19 +456,19 @@ export const lookupCharacter = createServerFn({ method: "POST" })
   .validator(previewInput)
   .handler(async ({ data }) => {
     await adminMutation();
-    const selectedRuleset =
+    const selected =
       "squadId" in data
         ? (
             await required<Squad>(
               `SELECT ${squadColumns} FROM squads WHERE id=?`,
               data.squadId,
             )
-          ).ruleset
-        : (await fetchCharacter(data.characterId)).ruleset;
+          )
+        : await fetchCharacter(data.characterId);
     const { gameData } = await import("./game");
     return gameData(db()).lookupCharacter({
-      region: "eu",
-      ruleset: selectedRuleset,
+      region: selected.region,
+      ruleset: selected.ruleset,
       fullName: data.fullName,
     });
   });
@@ -478,14 +482,14 @@ export const addVerifiedCharacter = createServerFn({ method: "POST" })
     );
     const { gameData } = await import("./game");
     const result = await gameData(db()).lookupCharacter({
-      region: "eu",
+      region: squad.region,
       ruleset: squad.ruleset,
       fullName: data.fullName,
     });
     if (result.status !== "ok") return result;
     const identity = result.data;
     if (
-      identity.region !== "eu" ||
+      identity.region !== squad.region ||
       identity.ruleset !== squad.ruleset ||
       !identity.provider ||
       !identity.externalId
@@ -494,33 +498,37 @@ export const addVerifiedCharacter = createServerFn({ method: "POST" })
     await db().batch([
       db()
         .prepare(
-          "INSERT INTO characters(id,name,normalized_name,ruleset,verified,provider,external_id) SELECT ?,?,?,?,1,?,? WHERE NOT EXISTS(SELECT 1 FROM characters WHERE provider=? AND region='eu' AND ruleset=? AND external_id=? AND verified=1)",
+          "INSERT INTO characters(id,name,normalized_name,region,ruleset,verified,provider,external_id) SELECT ?,?,?,?,?,1,?,? WHERE NOT EXISTS(SELECT 1 FROM characters WHERE provider=? AND region=? AND ruleset=? AND external_id=? AND verified=1)",
         )
         .bind(
           crypto.randomUUID(),
           identity.fullName,
           identity.fullName.normalize("NFKC").toLowerCase(),
+          identity.region,
           identity.ruleset,
           identity.provider,
           identity.externalId,
           identity.provider,
+          identity.region,
           identity.ruleset,
           identity.externalId,
         ),
       db()
         .prepare(
-          "INSERT OR IGNORE INTO squad_characters(squad_id,character_id) SELECT ?,id FROM characters WHERE provider=? AND region='eu' AND ruleset=? AND external_id=? AND verified=1",
+          "INSERT OR IGNORE INTO squad_characters(squad_id,character_id) SELECT ?,id FROM characters WHERE provider=? AND region=? AND ruleset=? AND external_id=? AND verified=1",
         )
         .bind(
           data.squadId,
           identity.provider,
+          identity.region,
           identity.ruleset,
           identity.externalId,
         ),
     ]);
     const row = await required<Record<string, unknown>>(
-      `SELECT ${characterColumns} FROM characters WHERE provider=? AND region='eu' AND ruleset=? AND external_id=? AND verified=1`,
+      `SELECT ${characterColumns} FROM characters WHERE provider=? AND region=? AND ruleset=? AND external_id=? AND verified=1`,
       identity.provider,
+      identity.region,
       identity.ruleset,
       identity.externalId,
     );
@@ -534,14 +542,14 @@ export const linkPlaceholder = createServerFn({ method: "POST" })
     if (current.verified) throw new Error("Character is already verified");
     const { gameData } = await import("./game");
     const result = await gameData(db()).lookupCharacter({
-      region: "eu",
+      region: current.region,
       ruleset: current.ruleset,
       fullName: data.fullName,
     });
     if (result.status !== "ok") return result;
     const identity = result.data;
     if (
-      identity.region !== "eu" ||
+      identity.region !== current.region ||
       identity.ruleset !== current.ruleset ||
       !identity.provider ||
       !identity.externalId

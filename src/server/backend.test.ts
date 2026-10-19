@@ -83,6 +83,22 @@ beforeAll(async () => {
     .split(";")
     .filter((sql) => sql.trim()))
     await state.db.prepare(sql).run();
+  await state.db.exec("INSERT INTO users(id,username,key_hash,role) VALUES ('legacy','legacy','hash','player');");
+  await state.db.exec("INSERT INTO squads(id,name,ruleset) VALUES ('legacy','Legacy','normal');");
+  await state.db.exec("INSERT INTO characters(id,name,normalized_name,ruleset,owner_id,next_due) VALUES ('legacy','Legacy','legacy','normal','legacy',123);");
+  await state.db.exec("INSERT INTO squad_characters VALUES ('legacy','legacy');");
+  await state.db.exec("INSERT INTO wishlist_entries(id,character_id,category,priority,status,title) VALUES ('legacy','legacy','item','normal','wanted','Legacy item');");
+  await state.db.exec("INSERT INTO character_sections(character_id,section,value_json,fetched_at) VALUES ('legacy','profile','{}',123);");
+  await state.db.exec("INSERT INTO availability_entries(id,squad_id,user_id,starts_at,ends_at,character_id) VALUES ('legacy','legacy','legacy',1,2,'legacy');");
+  const tables = ["squads", "characters", "squad_characters", "wishlist_entries", "character_sections", "availability_entries"];
+  const before = await Promise.all(tables.map((table) => state.db.prepare(`SELECT * FROM ${table}`).all()));
+  // Run in a batch like D1 migrations, including real foreign-key cascades.
+  const migration = readFileSync("migrations/0006_regions.sql", "utf8").split("\n").filter((line) => line.trim() && !line.startsWith("--"));
+  await state.db.batch(migration.map((sql) => state.db.prepare(sql)));
+  for (const [index, table] of tables.entries()) {
+    expect((await state.db.prepare(`SELECT * FROM ${table}`).all()).results).toEqual(before[index].results);
+  }
+  expect((await state.db.prepare("PRAGMA foreign_key_check").all()).results).toEqual([]);
 });
 afterAll(async () => {
   await mf?.dispose();
@@ -271,7 +287,7 @@ describe("squads, ownership, and stored character constraints", () => {
       }),
     ).rejects.toThrow("HTTPS");
   });
-  it("rejects mismatched memberships, non-EU records, and the 51st stored character", async () => {
+  it("rejects mismatched memberships, invalid regions, and the 51st stored character", async () => {
     await signIn("admin");
     const normal = await call(api.createSquad, {
       name: "Normal",
@@ -288,7 +304,7 @@ describe("squads, ownership, and stored character constraints", () => {
     await expect(
       state.db
         .prepare(
-          "INSERT INTO characters(id,name,normalized_name,region,ruleset) VALUES ('us','US','us','us','normal')",
+          "INSERT INTO characters(id,name,normalized_name,region,ruleset) VALUES ('invalid','Invalid','invalid','invalid','normal')",
         )
         .run(),
     ).rejects.toThrow();
@@ -504,4 +520,25 @@ describe("squad game events", () => {
     expect(result).not.toHaveProperty("data");
     expect(await state.db.prepare("SELECT cache_key FROM game_cache WHERE kind='calendar-events'").first()).toBeNull();
   });
+});
+
+it("creates squads in every region and isolates character identities by region", async () => {
+  await signIn("admin");
+  const characters = [];
+  for (const region of ["eu", "us", "kr", "tw", "cn"]) {
+    const squad = await call(api.createSquad, { name: region, region, ruleset: "normal" });
+    expect(squad.region).toBe(region);
+    const character = await call(api.addPlaceholder, { squadId: squad.id, name: "Same Hero" });
+    expect(character.region).toBe(region);
+    const other = await call(api.createSquad, { name: `${region} second`, region, ruleset: "normal" });
+    expect((await call(api.addPlaceholder, { squadId: other.id, name: "Same Hero" })).id).toBe(character.id);
+    if (characters.length) {
+      await expect(call(api.addCharacterToSquad, { squadId: squad.id, characterId: characters[0].id })).rejects.toThrow("regions must match");
+    }
+    characters.push(character);
+  }
+  expect(new Set(characters.map((character) => character.id)).size).toBe(5);
+  await expect(call(api.createSquad, { name: "Invalid", region: "invalid", ruleset: "normal" })).rejects.toThrow();
+  await signIn("player1");
+  await expect(call(api.createSquad, { name: "Denied", region: "us", ruleset: "normal" })).rejects.toThrow("Administrator");
 });

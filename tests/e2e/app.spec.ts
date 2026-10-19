@@ -23,6 +23,7 @@ test("admin roster, owner wishlist, read-only member, and mobile layout", async 
     .getByRole("button", { name: "Create squad", exact: true })
     .click();
   await admin.getByLabel("Squad name").fill("The Night Watch");
+  await admin.getByRole("combobox", { name: "Region", exact: true }).selectOption("us");
   await admin
     .getByRole("dialog")
     .getByRole("button", { name: "Create squad", exact: true })
@@ -47,6 +48,7 @@ test("admin roster, owner wishlist, read-only member, and mobile layout", async 
   );
   await admin.getByRole("link", { name: "View Aldric Dawnkeeper" }).click();
   const characterUrl = admin.url();
+  await expect(admin.getByText("NORMAL · AMERICAS & OCEANIA", { exact: true })).toBeVisible();
   await expect(
     admin.getByRole("heading", { name: "Aldric Dawnkeeper", exact: true }),
   ).toBeVisible();

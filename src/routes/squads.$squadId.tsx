@@ -1,3 +1,4 @@
+import { regionLabels } from "../lib/regions";
 import { SquadCalendar } from "../components/squad-calendar";
 import { LookupForm } from "../components/game-data";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -95,7 +96,7 @@ function SquadPage() {
     <>
       <BackLink />
       <PageHeading
-        eyebrow={`${rulesetLabels[squad.ruleset].toUpperCase()} · EUROPE`}
+        eyebrow={`${rulesetLabels[squad.ruleset].toUpperCase()} · ${regionLabels[squad.region].toUpperCase()}`}
         title={squad.name}
         action={
           user.role === "admin" ? (
@@ -338,6 +339,7 @@ function SquadPage() {
           </p>
           {data.allCharacters.some(
             (c) =>
+              c.region === squad.region &&
               c.ruleset === squad.ruleset &&
               !characters.some((m) => m.id === c.id),
           ) && (
@@ -365,7 +367,8 @@ function SquadPage() {
                   {data.allCharacters
                     .filter(
                       (c) =>
-                        c.ruleset === squad.ruleset &&
+                        c.region === squad.region &&
+              c.ruleset === squad.ruleset &&
                         !characters.some((m) => m.id === c.id),
                     )
                     .map((c) => (
@@ -452,7 +455,7 @@ function SquadPage() {
                 maxLength={80}
               />
             </Field>
-            <Field label="EU ruleset">
+            <Field label="Ruleset">
               <select
                 name="ruleset"
                 defaultValue={squad.ruleset}
