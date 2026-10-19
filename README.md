@@ -18,6 +18,10 @@ Screenshots use fictional demo squads, unverified character placeholders, and cu
 
 <img src="docs/media/wishlist-mobile.png" alt="Character wishlist on mobile" width="390" />
 
+![Personal AI connections and token permissions](docs/media/ai-connections-desktop.png)
+
+![Creating an AI connection with wishlist and availability permissions](docs/media/create-ai-connection.png)
+
 Full-resolution PNGs are in [docs/media](docs/media) for README use and social posts. Regenerate them with `pnpm exec playwright install chromium` followed by `pnpm media:capture`. The capture command starts a local server on port 3100 and resets only the disposable `.wrangler/e2e` database; do not run it alongside browser tests. Login keys are never included in screenshots.
 
 ## Squad regions

@@ -8,7 +8,8 @@ import { mondayOf, localDateTime, localTimeCandidates, addDays } from "../src/li
 // Fictional demo content, written only to the disposable E2E database.
 function seedDemo() {
   const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
-  const sql: string[] = [];
+  // Replace generic E2E fixtures with presentation-ready demo content.
+  const sql: string[] = ["DELETE FROM squads;", "DELETE FROM characters;"];
   const squads = [
     ["night-watch", "The Night Watch", "eu", "normal"],
     ["stormguard", "Stormguard", "us", "pvp"],
@@ -88,6 +89,21 @@ test("capture README and social screenshots", async ({ browser }) => {
   await expect(player.getByRole("heading", { name: "A blade for the next adventure" })).toBeVisible();
   expect(await player.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await capture(player, "wishlist-mobile", true);
+  await player.setViewportSize({ width: 1440, height: 1000 });
+  await player.getByRole("link", { name: "AI connections", exact: true }).click();
+  await expect(player.getByRole("heading", { name: "AI connections", exact: true })).toBeVisible();
+  await player.getByRole("button", { name: "Create token", exact: true }).click();
+  await player.getByLabel("Connection name", { exact: true }).fill("My desktop assistant");
+  await player.getByRole("checkbox", { name: "Edit my characters’ wishlists", exact: true }).check();
+  await player.getByRole("checkbox", { name: "Manage my availability", exact: true }).check();
+  await capture(player, "create-ai-connection");
+  await player.getByRole("dialog").getByRole("button", { name: "Create token", exact: true }).click();
+  await expect(player.getByRole("heading", { name: "Token created", exact: true })).toBeVisible();
+  await player.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(player.getByRole("dialog")).toHaveCount(0);
+  await expect(player.getByRole("heading", { name: "My desktop assistant", exact: true })).toBeVisible();
+  await expect(player.getByLabel("Generated MCP token", { exact: true })).toHaveCount(0);
+  await capture(player, "ai-connections-desktop", true);
   await admin.close();
   await player.close();
 });
