@@ -160,3 +160,7 @@ A slot can optionally select one of the author’s characters in that squad. All
 A slot can include several named dungeons, raids, or battlegrounds and an optional note, or simply indicate availability. Sessions are limited to 48 hours, 10 activities, and a 2,000-character note. Concurrent edits are detected and require reloading the latest entry. Calendars refresh every minute while visible and on focus; successful changes refresh immediately.
 
 Automatic Forever game events are a separate, capability-gated integration. No verified Forever calendar HTTP source is configured, so the UI reports that automatic events are unavailable. It does not substitute retail or Classic schedules, invent battleground rotations, or require Blizzard connectivity for player availability.
+
+## Connect
+
+Follow Bojan Gvozderac on [LinkedIn](https://www.linkedin.com/in/gvozderacbojan/) and [Twitter / X](https://x.com/GvozderacBojan).
